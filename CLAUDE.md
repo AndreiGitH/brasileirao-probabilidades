@@ -33,6 +33,7 @@ Base única em `data/processed/jogos.csv` (versionada). Formato em
 | 2003-2024 | adaoduque/Brasileirao_Dataset (GitHub) | football-data.co.uk (2012+) |
 | 2025 | openfootball/football.json (GitHub) | football-data.co.uk |
 | corrente | football-data.org (token grátis em `.env`: `FOOTBALL_DATA_TOKEN=...`) | football-data.co.uk |
+| jogos futuros | — | The Odds API (`.env`: `ODDS_API_KEY=...`), `data/processed/odds_futuras.csv` |
 
 - Sem token, a temporada corrente vem do openfootball, que costuma ficar
   rodadas atrasado. O relatório do comando mostra quantos jogos estão encerrados.
@@ -57,15 +58,25 @@ Base única em `data/processed/jogos.csv` (versionada). Formato em
   Vantagem do mercado sobre o DC em RPS: 0.0075 (IC 95% bootstrap 0.0046-0.0103);
   nas rodadas 35-38, 0.0146 (0.0046-0.025). Confirma a decisão 1.
 - Pinnacle some do football-data.co.uk a partir de fim de out/2025; em 2026 só há
-  odds médias. O arquivo só traz odds de jogos já disputados: odds dos jogos
-  FUTUROS precisam de outra fonte (Fase 3).
+  odds médias. O arquivo só traz odds de jogos já disputados.
+- Odds dos jogos FUTUROS: `uv run brasileirao odds` (The Odds API, região eu,
+  1 crédito por coleta, 500/mês grátis). Cada coleta é ACRESCENTADA ao histórico
+  em `odds_futuras.csv`; o consenso usa a coleta mais recente de cada casa.
+  Prioridade por jogo: Pinnacle > Betfair Exchange > média das casas > Dixon-Coles.
+  A API costuma listar só ~1-2 semanas à frente; rodadas distantes usam o DC.
+- Remoção de margem (`scripts/comparar_margem.py`, 2012-2025): potência foi o
+  melhor (RPS 0.20038 vs 0.20044 Shin vs 0.20069 proporcional, odds médias).
+  Diferenças pequenas; potência é o padrão.
+- Conversão 1X2 do mercado -> (λ, μ): `mercado.taxas_do_mercado`, usando o ρ do DC.
 
 ## Comandos
 ```
 uv sync                    # instala dependências
 uv run brasileirao atualizar --temporada 2026
 uv run brasileirao tabela --temporada 2026
-uv run brasileirao proximos --temporada 2026   # forças DC + probabilidades dos jogos restantes
+uv run brasileirao odds                        # odds atuais (gasta 1 crédito da The Odds API)
+uv run brasileirao proximos --temporada 2026   # λ, μ e 1X2 de cada jogo restante, com a origem
+uv run python scripts/comparar_margem.py
 uv run python scripts/escolher_xi.py           # ~1,5 min
 uv run python scripts/comparar_mercado.py
 uv run pytest -q
@@ -75,7 +86,7 @@ uv run ruff check src tests
 ## Roteiro
 - [x] Fase 1: estrutura, coletores, base unificada, classificação com desempate
 - [x] Fase 2: Dixon-Coles (ajuste, decaimento, matriz de placares)
-- [ ] Fase 3: odds -> probabilidades (remoção de margem) e ajuste dos λ ao mercado
+- [x] Fase 3: odds -> probabilidades (remoção de margem) e ajuste dos λ ao mercado
 - [ ] Fase 4: Monte Carlo das rodadas restantes
 - [ ] Fase 5: backtest 2019-2025 e escolha da combinação
 - [ ] Fase 6: painel com as probabilidades por clube

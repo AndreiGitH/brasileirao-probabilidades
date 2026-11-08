@@ -67,6 +67,23 @@ _ALIASES: dict[str, list[str]] = {
 }
 
 
+# UF de cada clube: permite reconhecer formas como "Flamengo-RJ" sem confundir
+# homônimos de outro estado (ex.: "Botafogo-SP" NÃO vira Botafogo).
+_UF: dict[str, str] = {
+    "América-MG": "MG", "América-RN": "RN", "Athletico-PR": "PR", "Atlético-GO": "GO",
+    "Atlético-MG": "MG", "Avaí": "SC", "Bahia": "BA", "Barueri": "SP", "Botafogo": "RJ",
+    "Bragantino": "SP", "Brasiliense": "DF", "Ceará": "CE", "Chapecoense": "SC",
+    "Corinthians": "SP", "Coritiba": "PR", "CSA": "AL", "Criciúma": "SC", "Cruzeiro": "MG",
+    "Cuiabá": "MT", "Figueirense": "SC", "Flamengo": "RJ", "Fluminense": "RJ",
+    "Fortaleza": "CE", "Goiás": "GO", "Grêmio": "RS", "Grêmio Prudente": "SP",
+    "Guarani": "SP", "Internacional": "RS", "Ipatinga": "MG", "Joinville": "SC",
+    "Juventude": "RS", "Mirassol": "SP", "Náutico": "PE", "Palmeiras": "SP",
+    "Paraná": "PR", "Paysandu": "PA", "Ponte Preta": "SP", "Portuguesa": "SP",
+    "Remo": "PA", "Santa Cruz": "PE", "Santo André": "SP", "Santos": "SP",
+    "São Caetano": "SP", "São Paulo": "SP", "Sport": "PE", "Vasco": "RJ", "Vitória": "BA",
+}
+
+
 def _chave(nome: str) -> str:
     """Forma comparável: sem acento, minúscula, hífens e espaços unificados."""
     sem_acento = unicodedata.normalize("NFKD", nome).encode("ascii", "ignore").decode()
@@ -88,12 +105,18 @@ class TimeDesconhecido(KeyError):
 
 def padronizar(nome: str) -> str:
     """Devolve o nome canônico do clube ou levanta TimeDesconhecido."""
-    try:
-        return _MAPA[_chave(nome)]
-    except KeyError:
-        raise TimeDesconhecido(
-            f"Clube sem nome canônico: {nome!r}. Adicione o apelido em brasileirao/times.py"
-        ) from None
+    chave = _chave(nome)
+    if chave in _MAPA:
+        return _MAPA[chave]
+    partes = chave.rsplit(" ", 1)
+    if len(partes) == 2 and len(partes[1]) == 2:  # "flamengo rj"
+        base, uf = partes
+        canonico = _MAPA.get(base)
+        if canonico and _UF.get(canonico, "").lower() == uf:
+            return canonico
+    raise TimeDesconhecido(
+        f"Clube sem nome canônico: {nome!r}. Adicione o apelido em brasileirao/times.py"
+    )
 
 
 def canonicos() -> list[str]:

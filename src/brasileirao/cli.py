@@ -9,8 +9,9 @@ from datetime import date
 
 import pandas as pd
 
-from . import DADOS, avaliacao, dados
-from .modelo import dixon_coles as dc
+from . import DADOS, dados
+from .fontes import theoddsapi
+from .modelo import entradas
 from .tabela import classificacao
 
 
@@ -25,6 +26,7 @@ def main(argv: list[str] | None = None) -> None:
     f = sub.add_parser("proximos", help="forças do Dixon-Coles e probabilidades dos próximos jogos")
     f.add_argument("--temporada", type=int, default=date.today().year)
     f.add_argument("--data", default=str(date.today()), help="data de referência do ajuste")
+    sub.add_parser("odds", help="baixa as odds atuais (The Odds API, 1 crédito) e salva")
     args = p.parse_args(argv)
 
     if args.cmd == "atualizar":
@@ -36,28 +38,27 @@ def main(argv: list[str] | None = None) -> None:
         print(classificacao(jogos[jogos["temporada"] == args.temporada]).to_string())
     elif args.cmd == "proximos":
         _proximos(args.temporada, args.data)
+    elif args.cmd == "odds":
+        novas = theoddsapi.coletar()
+        entradas.salvar_odds(novas)
+        n_jogos = novas[["mandante", "visitante"]].drop_duplicates().shape[0] if len(novas) else 0
+        casas = sorted(novas["casa_apostas"].unique()) if len(novas) else []
+        print(f"{n_jogos} jogos com odds; casas: {', '.join(casas)}")
 
 
 def _proximos(temporada: int, data: str) -> None:
     hp = json.loads((DADOS / "processed" / "hiperparametros.json").read_text())
     jogos = dados.carregar()
-    p = dc.ajustar(jogos, data, xi=hp["xi"], ridge=hp["ridge"])
+    prev, p = entradas.entradas(jogos, temporada, data, hp["xi"], hp["ridge"])
     print(f"Dixon-Coles em {data}: xi={hp['xi']} ridge={hp['ridge']} "
           f"mando={p.mando:.3f} rho={p.rho:.3f}\n")
     da_temporada = jogos[jogos["temporada"] == temporada]
     clubes = set(da_temporada["mandante"]) | set(da_temporada["visitante"])
     forcas = p.tabela()
     print(forcas[forcas.index.isin(clubes)].round(3).to_string(), "\n")
-    fut = da_temporada[da_temporada["gols_mandante"].isna()]
-    prev = dc.prever(p, fut)
-    if fut["odd_med_casa"].notna().any():
-        mk = avaliacao.probs_mercado(fut)
-        prev["mk_casa"], prev["mk_empate"], prev["mk_fora"] = mk.T
-    cols = [c for c in prev.columns if c not in ("lambda", "mu")]
-    with pd.option_context("display.width", 140):
-        prev = prev.assign(data=prev["data"].dt.date)
+    cols = ["data", "mandante", "visitante", "lambda", "mu", *entradas.PROBS, "origem"]
+    prev = prev.assign(data=prev["data"].dt.date)
+    with pd.option_context("display.width", 160):
         print(prev[cols].round(3).to_string(index=False))
-
-
-if __name__ == "__main__":
-    main()
+    contagem = prev["origem"].value_counts().to_dict()
+    print(f"\nOrigem das probabilidades: {contagem}")

@@ -34,17 +34,19 @@ class Resultado:
         cont = np.stack([(self.posicoes == k).mean(0) for k in range(1, n_t + 1)], axis=1)
         return pd.DataFrame(cont, index=self.times, columns=range(1, n_t + 1))
 
-    def resumo(self, g_libertadores: int = 4, g_pre: int = 5, z: int = 4) -> pd.DataFrame:
+    def resumo(self, faixas: tuple[int, ...] = (4, 5, 6), z: int = 4) -> pd.DataFrame:
+        """Chances de título, de terminar entre os N primeiros (gN) e de rebaixamento."""
         n_t = len(self.times)
         pos = self.posicoes
-        df = pd.DataFrame({
+        colunas = {
             "pts_medio": self.pontos.mean(0),
             "pos_media": pos.mean(0),
             "titulo": (pos == 1).mean(0),
-            f"g{g_libertadores}": (pos <= g_libertadores).mean(0),
-            f"g{g_pre}": (pos <= g_pre).mean(0),
-            "rebaixamento": (pos > n_t - z).mean(0),
-        }, index=self.times)
+        }
+        for g in faixas:
+            colunas[f"g{g}"] = (pos <= g).mean(0)
+        colunas["rebaixamento"] = (pos > n_t - z).mean(0)
+        df = pd.DataFrame(colunas, index=self.times)
         return df.sort_values(["pos_media", "pts_medio"], ascending=[True, False])
 
 

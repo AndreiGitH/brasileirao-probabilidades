@@ -73,8 +73,8 @@ Base única em `data/processed/jogos.csv` (versionada). Formato em
 - `modelo/simulacao.py`: sorteia placares da matriz DC (λ, μ do mercado ou do DC),
   ordena por pts > vitórias > saldo > gols pró > confronto direto (só empate de 2)
   > sorteio (cartões indisponíveis). 100 mil simulações em ~0,5 s.
-- Saída: título, G4, G5 (4 vagas diretas + 1 preliminar na Libertadores 2026; pode
-  mudar com campeões de copas, que não simulamos), rebaixamento (Z4), pontos e
+- Saída: título, G4, G5, G6 (Libertadores 2026: 4 vagas diretas + 1 preliminar; o
+  número de vagas pode mudar com campeões de copas, que não simulamos), rebaixamento (Z4), pontos e
   posição médios. Gravada em `data/processed/simulacoes/<data>.csv`.
 - Proteção: `dados.salvar` recusa gravar base que perca jogos encerrados ou odds
   (ex.: rodar `atualizar` sem token). `--forcar` ignora a proteção.

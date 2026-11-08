@@ -9,7 +9,7 @@ from datetime import date
 
 import pandas as pd
 
-from . import DADOS, dados
+from . import DADOS, dados, painel
 from .fontes import theoddsapi
 from .modelo import entradas, simulacao
 from .tabela import classificacao
@@ -30,6 +30,8 @@ def main(argv: list[str] | None = None) -> None:
     f.add_argument("--temporada", type=int, default=date.today().year)
     f.add_argument("--data", default=str(date.today()), help="data de referência do ajuste")
     sub.add_parser("odds", help="baixa as odds atuais (The Odds API, 1 crédito) e salva")
+    pn = sub.add_parser("painel", help="gera painel/index.html com a simulação mais recente")
+    pn.add_argument("--temporada", type=int, default=date.today().year)
     for nome, ajuda in [("simular", "simula as rodadas restantes"),
                         ("rodada", "atualiza dados, coleta odds e simula (uso semanal)")]:
         sp = sub.add_parser(nome, help=ajuda)
@@ -59,6 +61,9 @@ def main(argv: list[str] | None = None) -> None:
         except Exception as e:  # noqa: BLE001 - sem chave/rede: segue com o que houver
             log.warning("Odds não coletadas (%s); jogos sem odds usam o Dixon-Coles.", e)
         _simular(args.temporada, args.data, args.n, args.seed)
+        print(f"Painel: {painel.gerar(args.temporada)}")
+    elif args.cmd == "painel":
+        print(f"Painel: {painel.gerar(args.temporada)}")
     elif args.cmd == "odds":
         _coletar_odds()
 
@@ -101,6 +106,12 @@ def _simular(temporada: int, data: str, n: int, seed: int | None) -> None:
     pasta = DADOS / "processed" / "simulacoes"
     pasta.mkdir(parents=True, exist_ok=True)
     res.assign(data_ref=data, n_sim=n).to_csv(pasta / f"{data}.csv", index_label="time")
+    r.distribuicao().to_csv(pasta / f"{data}_posicoes.csv", index_label="time")
+    cols = ["data", "rodada", "mandante", "visitante", "lambda", "mu", *entradas.PROBS, "origem"]
+    restantes = prev.merge(jogos[jogos["temporada"] == temporada][["mandante", "visitante",
+                                                                    "rodada"]],
+                           on=["mandante", "visitante"], how="left")
+    restantes[cols].to_csv(pasta / f"{data}_jogos.csv", index=False, date_format="%Y-%m-%d")
 
     pct = res.copy()
     for c in pct.columns[2:]:

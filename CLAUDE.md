@@ -81,6 +81,27 @@ Base única em `data/processed/jogos.csv` (versionada). Formato em
 - Rotina semanal no PC, sem Claude: `uv run brasileirao rodada` (atualiza, coleta
   odds, simula). Esforço do Claude só se der erro.
 
+## Backtest final (Fase 5, `scripts/backtest.py`, ~20 s)
+- Por jogo, rodadas 35-38 de 2019-2025 (280 jogos), RPS: mercado 0.2013 <
+  mistura 50/50 0.2041 < Elo (K=10) 0.2095 < Dixon-Coles 0.2116. O peso ótimo da
+  mistura escolhido em 2015-2018 foi 100% mercado. DC pior que o mercado com IC 95%
+  fora do zero; Elo e 50/50 não significativamente piores (amostra pequena).
+- Fallback sem odds, todas as rodadas 2019-2025 (2660 jogos): DC 0.2082, Elo
+  0.2097, DC+Elo 50/50 0.2080 (diferença não significativa). Mantido o DC.
+- Temporada simulada a partir das rodadas 31 e 35, Brier dos eventos título, G4,
+  G6, Z4: mercado de fechamento (otimista, usa info futura) < híbrido realista
+  (mercado só na rodada seguinte + DC) < DC puro. Calibração do híbrido boa:
+  faixas 0-20% → 6,6% observado (8,2% previsto), 80-100% → 90,7% (90,6%).
+- Decisão mantida: mercado onde houver odds, DC no resto. Arquivos em
+  `data/processed/backtest/`.
+
+## Painel (Fase 6)
+- `uv run brasileirao painel` gera `painel/index.html`: página única, sem
+  internet, dados embutidos (`src/brasileirao/painel.py`). O comando `rodada`
+  já gera o painel no fim. Mostra título/G6/Z4, tabela completa, mapa de
+  posições, evolução entre datas (a partir de 2 simulações), próximos jogos
+  com a origem (mercado/modelo) e a calibração do backtest.
+
 ## Comandos
 ```
 uv sync                    # instala dependências
@@ -93,6 +114,8 @@ uv run brasileirao rodada                      # tudo junto: atualizar + odds + 
 uv run python scripts/comparar_margem.py
 uv run python scripts/escolher_xi.py           # ~1,5 min
 uv run python scripts/comparar_mercado.py
+uv run python scripts/backtest.py              # Fase 5 completa
+uv run brasileirao painel                      # painel/index.html
 uv run pytest -q
 uv run ruff check src tests
 ```
@@ -102,8 +125,8 @@ uv run ruff check src tests
 - [x] Fase 2: Dixon-Coles (ajuste, decaimento, matriz de placares)
 - [x] Fase 3: odds -> probabilidades (remoção de margem) e ajuste dos λ ao mercado
 - [x] Fase 4: Monte Carlo das rodadas restantes
-- [ ] Fase 5: backtest 2019-2025 e escolha da combinação
-- [ ] Fase 6: painel com as probabilidades por clube
+- [x] Fase 5: backtest 2019-2025 e escolha da combinação
+- [x] Fase 6: painel com as probabilidades por clube
 
 ## Convenções
 - Código e comentários em português; nomes canônicos com acento ("Grêmio").

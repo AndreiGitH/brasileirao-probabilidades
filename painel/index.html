@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Brasileirão — probabilidades</title>
+<style>
+:root { --bg:#fbfaf7; --fg:#1d1d1b; --muted:#6b6a65; --line:#e4e1d9; --panel:#ffffff;
+  --azul:#2d6fb7; --verde:#2f8f5b; --vermelho:#c2412d; --ouro:#b8860b; }
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#161614; --fg:#ecebe6; --muted:#a3a19a; --line:#34332f; --panel:#1f1f1c;
+    --azul:#6aa5e8; --verde:#5cc28a; --vermelho:#ef7a63; --ouro:#e2b84a; } }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--bg); color:var(--fg);
+  font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+main { max-width:1080px; margin:0 auto; padding:24px 16px 48px; }
+h1 { font-size:26px; margin:0 0 4px; letter-spacing:-.01em; }
+h2 { font-size:18px; margin:36px 0 10px; }
+.sub { color:var(--muted); margin:0 0 20px; }
+.cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:14px; }
+.card { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px 16px; }
+.card h3 { margin:0 0 10px; font-size:15px; }
+.barra { display:grid; grid-template-columns:110px 1fr 52px; align-items:center; gap:8px;
+  margin:5px 0; font-size:14px; }
+.trilho { height:12px; background:var(--line); border-radius:6px; overflow:hidden; }
+.trilho > div { height:100%; border-radius:6px; }
+.num { text-align:right; font-variant-numeric:tabular-nums; }
+.tabela-wrap { overflow-x:auto; border:1px solid var(--line); border-radius:12px; background:var(--panel); }
+table { border-collapse:collapse; width:100%; font-size:14px; font-variant-numeric:tabular-nums; }
+th, td { padding:7px 8px; text-align:right; white-space:nowrap; border-bottom:1px solid var(--line); }
+th { color:var(--muted); font-weight:600; font-size:12px; position:sticky; top:0; background:var(--panel); }
+td.time, th.time { text-align:left; position:sticky; left:0; background:var(--panel); z-index:1; }
+tr:last-child td { border-bottom:none; }
+td.p { min-width:58px; }
+.heat td.c { padding:0; min-width:26px; height:26px; text-align:center; font-size:10px; }
+.legenda { color:var(--muted); font-size:13px; margin-top:8px; }
+.jogo { display:grid; grid-template-columns:78px 1fr; gap:4px 10px; padding:9px 0;
+  border-bottom:1px solid var(--line); }
+.jogo:last-child { border-bottom:none; }
+.jogo .quando { color:var(--muted); font-size:13px; grid-row:span 2; }
+.empilhada { display:flex; height:16px; border-radius:4px; overflow:hidden; font-size:10px; color:#fff; }
+.empilhada div { display:flex; align-items:center; justify-content:center; }
+.tag { font-size:11px; color:var(--muted); }
+svg text { fill:var(--muted); font-size:11px; }
+.dica { position:fixed; pointer-events:none; background:var(--fg); color:var(--bg); padding:4px 8px;
+  border-radius:6px; font-size:12px; display:none; z-index:9; }
+details { margin-top:8px; }
+</style>
+</head>
+<body>
+<main>
+<h1 id="titulo">Brasileirão</h1>
+<p class="sub" id="sub"></p>
+
+<div class="cards">
+  <div class="card"><h3>Título</h3><div id="c-titulo"></div></div>
+  <div class="card"><h3>Libertadores (G6)</h3><div id="c-g6"></div></div>
+  <div class="card"><h3>Rebaixamento (Z4)</h3><div id="c-z4"></div></div>
+</div>
+
+<h2>Todos os clubes</h2>
+<div class="tabela-wrap"><table id="tab"></table></div>
+<p class="legenda">Pts: pontos atuais. Pts proj.: média de pontos ao fim do campeonato nas simulações.
+G4/G5/G6: chance de terminar entre os 4, 5 ou 6 primeiros. O número de vagas na Libertadores pode mudar
+com os campeões das copas, que o modelo não simula.</p>
+
+<h2>Chance de cada posição final</h2>
+<div class="tabela-wrap"><table class="heat" id="heat"></table></div>
+
+<div id="evo-sec"><h2>Evolução das chances</h2><div class="card"><div id="evo"></div></div></div>
+
+<h2>Próximos jogos</h2>
+<div class="card" id="jogos"></div>
+<p class="legenda">Barra: vitória do mandante · empate · vitória do visitante.
+"Mercado" = odds sem a margem da casa (Pinnacle ou Betfair quando disponíveis);
+"modelo" = Dixon-Coles, usado quando o jogo ainda não tem odds.</p>
+
+<h2>Como ler e quão confiável é</h2>
+<div class="card">
+<p style="margin-top:0">Cada atualização simula o restante do campeonato <span id="nsim"></span> vezes, sorteando
+o placar de cada jogo e aplicando os critérios de desempate (pontos, vitórias, saldo, gols marcados e
+confronto direto). A chance de um evento é a fração das simulações em que ele aconteceu.</p>
+<p>No teste com as temporadas 2019–2025, as probabilidades se mostraram bem calibradas: quando o
+modelo disse X%, o evento aconteceu perto de X% das vezes.</p>
+<details><summary>Ver a calibração do teste</summary><div class="tabela-wrap" style="margin-top:8px">
+<table id="calib"></table></div></details>
+</div>
+</main>
+<div class="dica" id="dica"></div>
+<script id="dados" type="application/json">{"temporada": 2026, "data": "2026-11-08", "rodada": 34, "n_sim": 100000, "origem": {"dixon-coles": 31, "mercado:pinnacle": 9, "mercado:betfair_ex_eu": 1}, "clubes": [{"time": "Flamengo", "pts": 76, "j": 34, "sg": 42, "pos_atual": 1, "pts_medio": 84.32153, "pos_media": 1.11444, "titulo": 0.88556, "g4": 1.0, "g5": 1.0, "g6": 1.0, "z4": 0.0, "posicoes": [0.88556, 0.11444, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, {"time": "Palmeiras", "pts": 73, "j": 34, "sg": 39, "pos_atual": 2, "pts_medio": 80.6418, "pos_media": 1.88556, "titulo": 0.11444, "g4": 1.0, "g5": 1.0, "g6": 1.0, "z4": 0.0, "posicoes": [0.11444, 0.88556, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, {"time": "Cruzeiro", "pts": 60, "j": 34, "sg": 7, "pos_atual": 3, "pts_medio": 66.17461, "pos_media": 3.21625, "titulo": 0.0, "g4": 0.97896, "g5": 0.99829, "g6": 0.99999, "z4": 0.0, "posicoes": [0.0, 0.0, 0.80651, 0.17245, 0.01933, 0.0017, 1e-05, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, {"time": "Fluminense", "pts": 57, "j": 34, "sg": 13, "pos_atual": 4, "pts_medio": 63.01262, "pos_media": 4.08393, "titulo": 0.0, "g4": 0.79434, "g5": 0.94818, "g6": 0.99372, "z4": 0.0, "posicoes": [0.0, 0.0, 0.18019, 0.61415, 0.15384, 0.04554, 0.00592, 0.00036, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, {"time": "Athletico-PR", "pts": 54, "j": 34, "sg": 8, "pos_atual": 5, "pts_medio": 59.29199, "pos_media": 5.5255, "titulo": 0.0, "g4": 0.11654, "g5": 0.52793, "g6": 0.86153, "z4": 0.0, "posicoes": [0.0, 0.0, 0.00664, 0.1099, 0.41139, 0.3336, 0.10608, 0.02696, 0.00511, 0.00032, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, {"time": "Bahia", "pts": 53, "j": 34, "sg": 5, "pos_atual": 6, "pts_medio": 59.06204, "pos_media": 5.83468, "titulo": 0.0, "g4": 0.09604, "g5": 0.40525, "g6": 0.75227, "z4": 0.0, "posicoes": [0.0, 0.0, 0.00634, 0.0897, 0.30921, 0.34702, 0.17029, 0.06147, 0.01482, 0.00113, 2e-05, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, {"time": "Atlético-MG", "pts": 50, "j": 34, "sg": 4, "pos_atual": 7, "pts_medio": 55.60498, "pos_media": 7.17161, "titulo": 0.0, "g4": 0.01277, "g5": 0.09741, "g6": 0.27588, "z4": 0.0, "posicoes": [0.0, 0.0, 0.00032, 0.01245, 0.08464, 0.17847, 0.35133, 0.227, 0.11217, 0.02814, 0.00518, 0.00029, 1e-05, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, {"time": "Santos", "pts": 47, "j": 34, "sg": 1, "pos_atual": 9, "pts_medio": 53.56398, "pos_media": 8.46198, "titulo": 0.0, "g4": 0.00044, "g5": 0.01184, "g6": 0.06124, "z4": 0.0, "posicoes": [0.0, 0.0, 0.0, 0.00044, 0.0114, 0.0494, 0.17001, 0.29919, 0.27711, 0.12105, 0.04681, 0.01739, 0.00577, 0.00131, 0.00012, 0.0, 0.0, 0.0, 0.0, 0.0]}, {"time": "Bragantino", "pts": 47, "j": 34, "sg": 5, "pos_atual": 8, "pts_medio": 52.80227, "pos_media": 8.50078, "titulo": 0.0, "g4": 0.00091, "g5": 0.01094, "g6": 0.05207, "z4": 0.0, "posicoes": [0.0, 0.0, 0.0, 0.00091, 0.01003, 0.04113, 0.16685, 0.2785, 0.30979, 0.12553, 0.04989, 0.0141, 0.00293, 0.00033, 1e-05, 0.0, 0.0, 0.0, 0.0, 0.0]}, {"time": "São Paulo", "pts": 44, "j": 34, "sg": 0, "pos_atual": 10, "pts_medio": 49.34938, "pos_media": 10.50144, "titulo": 0.0, "g4": 0.0, "g5": 0.00014, "g6": 0.00252, "z4": 9e-05, "posicoes": [0.0, 0.0, 0.0, 0.0, 0.00014, 0.00238, 0.01618, 0.05564, 0.14415, 0.34371, 0.21193, 0.12455, 0.06315, 0.02744, 0.00908, 0.00156, 9e-05, 0.0, 0.0, 0.0]}, {"time": "Vasco", "pts": 41, "j": 33, "sg": -7, "pos_atual": 13, "pts_medio": 48.04497, "pos_media": 11.54761, "titulo": 0.0, "g4": 0.0, "g5": 2e-05, "g6": 0.00071, "z4": 0.01517, "posicoes": [0.0, 0.0, 0.0, 0.0, 2e-05, 0.00069, 0.0109, 0.03333, 0.07268, 0.17206, 0.26163, 0.18098, 0.11359, 0.07079, 0.04323, 0.02493, 0.0121, 0.00307, 0.0, 0.0]}, {"time": "Botafogo", "pts": 42, "j": 34, "sg": -7, "pos_atual": 11, "pts_medio": 47.16167, "pos_media": 12.20695, "titulo": 0.0, "g4": 0.0, "g5": 0.0, "g6": 7e-05, "z4": 0.01688, "posicoes": [0.0, 0.0, 0.0, 0.0, 0.0, 7e-05, 0.00222, 0.01446, 0.04728, 0.12524, 0.18825, 0.21554, 0.16744, 0.10766, 0.07236, 0.0426, 0.01464, 0.00224, 0.0, 0.0]}, {"time": "Mirassol", "pts": 40, "j": 34, "sg": -9, "pos_atual": 14, "pts_medio": 45.40945, "pos_media": 13.86057, "titulo": 0.0, "g4": 0.0, "g5": 0.0, "g6": 0.0, "z4": 0.12431, "posicoes": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 8e-05, 0.00148, 0.00764, 0.03593, 0.08867, 0.14684, 0.17541, 0.16265, 0.143, 0.11399, 0.08133, 0.04284, 0.00014, 0.0]}, {"time": "Coritiba", "pts": 42, "j": 34, "sg": -11, "pos_atual": 12, "pts_medio": 45.08441, "pos_media": 14.04816, "titulo": 0.0, "g4": 0.0, "g5": 0.0, "g6": 0.0, "z4": 0.07795, "posicoes": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.00013, 0.00144, 0.00627, 0.02184, 0.05855, 0.10799, 0.1774, 0.20401, 0.18781, 0.15661, 0.06738, 0.01057, 0.0, 0.0]}, {"time": "Internacional", "pts": 38, "j": 34, "sg": -4, "pos_atual": 16, "pts_medio": 43.60903, "pos_media": 15.19884, "titulo": 0.0, "g4": 0.0, "g5": 0.0, "g6": 0.0, "z4": 0.31718, "posicoes": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 8e-05, 0.00152, 0.01004, 0.03518, 0.06781, 0.09869, 0.13886, 0.15946, 0.17118, 0.1844, 0.13199, 0.00079, 0.0]}, {"time": "Corinthians", "pts": 37, "j": 34, "sg": -6, "pos_atual": 17, "pts_medio": 42.76159, "pos_media": 15.64444, "titulo": 0.0, "g4": 0.0, "g5": 0.0, "g6": 0.0, "z4": 0.40916, "posicoes": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1e-05, 0.00036, 0.00705, 0.02409, 0.05528, 0.07918, 0.10944, 0.14207, 0.17336, 0.19462, 0.20884, 0.0057, 0.0]}, {"time": "Vitória", "pts": 38, "j": 34, "sg": -16, "pos_atual": 15, "pts_medio": 42.45397, "pos_media": 15.87622, "titulo": 0.0, "g4": 0.0, "g5": 0.0, "g6": 0.0, "z4": 0.46173, "posicoes": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 8e-05, 0.00087, 0.00501, 0.01856, 0.0381, 0.06536, 0.10113, 0.13366, 0.1755, 0.23523, 0.22452, 0.00198, 0.0]}, {"time": "Grêmio", "pts": 37, "j": 34, "sg": -9, "pos_atual": 18, "pts_medio": 41.93781, "pos_media": 16.33909, "titulo": 0.0, "g4": 0.0, "g5": 0.0, "g6": 0.0, "z4": 0.5779, "posicoes": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.00023, 0.00295, 0.01124, 0.03113, 0.05107, 0.07638, 0.10918, 0.13992, 0.2081, 0.36323, 0.00657, 0.0]}, {"time": "Remo", "pts": 29, "j": 34, "sg": -20, "pos_atual": 19, "pts_medio": 33.98325, "pos_media": 18.98927, "titulo": 0.0, "g4": 0.0, "g5": 0.0, "g6": 0.0, "z4": 0.99963, "posicoes": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 2e-05, 0.00035, 0.00211, 0.0127, 0.9775, 0.00732]}, {"time": "Chapecoense", "pts": 21, "j": 33, "sg": -35, "pos_atual": 20, "pts_medio": 24.28456, "pos_media": 19.99268, "titulo": 0.0, "g4": 0.0, "g5": 0.0, "g6": 0.0, "z4": 1.0, "posicoes": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.00732, 0.99268]}], "jogos": [{"data": "2026-11-14", "rodada": 21, "mandante": "Chapecoense", "visitante": "Vasco", "lambda": 1.057, "mu": 2.1362, "p_casa": 0.1718, "p_empate": 0.2144, "p_fora": 0.6138, "origem": "mercado:pinnacle"}, {"data": "2026-11-14", "rodada": 35, "mandante": "Mirassol", "visitante": "Atlético-MG", "lambda": 1.6376, "mu": 1.1155, "p_casa": 0.487, "p_empate": 0.262, "p_fora": 0.251, "origem": "mercado:pinnacle"}, {"data": "2026-11-18", "rodada": 35, "mandante": "Corinthians", "visitante": "Botafogo", "lambda": 1.7666, "mu": 1.0357, "p_casa": 0.5372, "p_empate": 0.2498, "p_fora": 0.2129, "origem": "mercado:pinnacle"}, {"data": "2026-11-18", "rodada": 35, "mandante": "Coritiba", "visitante": "Santos", "lambda": 1.2825, "mu": 1.6382, "p_casa": 0.2919, "p_empate": 0.2586, "p_fora": 0.4495, "origem": "mercado:pinnacle"}, {"data": "2026-11-18", "rodada": 35, "mandante": "Cruzeiro", "visitante": "Palmeiras", "lambda": 1.3453, "mu": 1.4403, "p_casa": 0.3433, "p_empate": 0.2702, "p_fora": 0.3865, "origem": "mercado:pinnacle"}, {"data": "2026-11-18", "rodada": 35, "mandante": "Flamengo", "visitante": "Athletico-PR", "lambda": 3.0073, "mu": 0.8876, "p_casa": 0.7933, "p_empate": 0.1314, "p_fora": 0.0753, "origem": "mercado:pinnacle"}, {"data": "2026-11-18", "rodada": 35, "mandante": "Grêmio", "visitante": "Bahia", "lambda": 1.5292, "mu": 1.3722, "p_casa": 0.4034, "p_empate": 0.2632, "p_fora": 0.3334, "origem": "mercado:pinnacle"}, {"data": "2026-11-18", "rodada": 35, "mandante": "Remo", "visitante": "Chapecoense", "lambda": 1.9354, "mu": 1.0666, "p_casa": 0.5687, "p_empate": 0.2336, "p_fora": 0.1977, "origem": "dixon-coles"}, {"data": "2026-11-19", "rodada": 35, "mandante": "São Paulo", "visitante": "Fluminense", "lambda": 1.3395, "mu": 1.1333, "p_casa": 0.4052, "p_empate": 0.2882, "p_fora": 0.3066, "origem": "mercado:pinnacle"}, {"data": "2026-11-19", "rodada": 35, "mandante": "Vasco", "visitante": "Internacional", "lambda": 1.0444, "mu": 1.2282, "p_casa": 0.303, "p_empate": 0.303, "p_fora": 0.3941, "origem": "mercado:betfair_ex_eu"}, {"data": "2026-11-19", "rodada": 35, "mandante": "Vitória", "visitante": "Bragantino", "lambda": 1.2865, "mu": 1.3749, "p_casa": 0.3407, "p_empate": 0.2776, "p_fora": 0.3817, "origem": "mercado:pinnacle"}, {"data": "2026-11-21", "rodada": 36, "mandante": "Bahia", "visitante": "Coritiba", "lambda": 1.8909, "mu": 0.953, "p_casa": 0.586, "p_empate": 0.2358, "p_fora": 0.1782, "origem": "dixon-coles"}, {"data": "2026-11-21", "rodada": 36, "mandante": "Chapecoense", "visitante": "Cruzeiro", "lambda": 1.1797, "mu": 1.888, "p_casa": 0.2292, "p_empate": 0.2391, "p_fora": 0.5317, "origem": "dixon-coles"}, {"data": "2026-11-21", "rodada": 36, "mandante": "Palmeiras", "visitante": "Flamengo", "lambda": 1.445, "mu": 1.08, "p_casa": 0.4457, "p_empate": 0.2808, "p_fora": 0.2735, "origem": "dixon-coles"}, {"data": "2026-11-22", "rodada": 36, "mandante": "Athletico-PR", "visitante": "Remo", "lambda": 2.0211, "mu": 0.9697, "p_casa": 0.6104, "p_empate": 0.2229, "p_fora": 0.1667, "origem": "dixon-coles"}, {"data": "2026-11-22", "rodada": 36, "mandante": "Bragantino", "visitante": "Vasco", "lambda": 1.6994, "mu": 1.1034, "p_casa": 0.505, "p_empate": 0.2563, "p_fora": 0.2387, "origem": "dixon-coles"}, {"data": "2026-11-22", "rodada": 36, "mandante": "Fluminense", "visitante": "Mirassol", "lambda": 1.6767, "mu": 0.9563, "p_casa": 0.5348, "p_empate": 0.2588, "p_fora": 0.2064, "origem": "dixon-coles"}, {"data": "2026-11-23", "rodada": 36, "mandante": "Botafogo", "visitante": "São Paulo", "lambda": 1.4387, "mu": 0.9786, "p_casa": 0.4681, "p_empate": 0.2843, "p_fora": 0.2476, "origem": "dixon-coles"}, {"data": "2026-11-23", "rodada": 36, "mandante": "Internacional", "visitante": "Vitória", "lambda": 1.4795, "mu": 0.8782, "p_casa": 0.5039, "p_empate": 0.2813, "p_fora": 0.2148, "origem": "dixon-coles"}, {"data": "2026-11-23", "rodada": 36, "mandante": "Santos", "visitante": "Grêmio", "lambda": 1.6938, "mu": 1.0009, "p_casa": 0.5281, "p_empate": 0.2571, "p_fora": 0.2148, "origem": "dixon-coles"}, {"data": "2026-11-24", "rodada": 37, "mandante": "Chapecoense", "visitante": "Palmeiras", "lambda": 0.8254, "mu": 2.0796, "p_casa": 0.1315, "p_empate": 0.211, "p_fora": 0.6575, "origem": "dixon-coles"}, {"data": "2026-11-25", "rodada": 36, "mandante": "Atlético-MG", "visitante": "Corinthians", "lambda": 1.3929, "mu": 0.8608, "p_casa": 0.4849, "p_empate": 0.292, "p_fora": 0.2231, "origem": "dixon-coles"}, {"data": "2026-11-26", "rodada": 37, "mandante": "São Paulo", "visitante": "Remo", "lambda": 1.5955, "mu": 0.8816, "p_casa": 0.5333, "p_empate": 0.2676, "p_fora": 0.1992, "origem": "dixon-coles"}, {"data": "2026-11-27", "rodada": 37, "mandante": "Fluminense", "visitante": "Cruzeiro", "lambda": 1.6261, "mu": 1.1556, "p_casa": 0.4749, "p_empate": 0.2624, "p_fora": 0.2627, "origem": "dixon-coles"}, {"data": "2026-11-28", "rodada": 37, "mandante": "Botafogo", "visitante": "Bahia", "lambda": 1.5445, "mu": 1.2009, "p_casa": 0.4441, "p_empate": 0.2683, "p_fora": 0.2876, "origem": "dixon-coles"}, {"data": "2026-11-29", "rodada": 37, "mandante": "Atlético-MG", "visitante": "Vasco", "lambda": 1.6374, "mu": 1.0157, "p_casa": 0.5106, "p_empate": 0.2629, "p_fora": 0.2265, "origem": "dixon-coles"}, {"data": "2026-11-29", "rodada": 37, "mandante": "Corinthians", "visitante": "Grêmio", "lambda": 1.4017, "mu": 0.9556, "p_casa": 0.4636, "p_empate": 0.2889, "p_fora": 0.2475, "origem": "dixon-coles"}, {"data": "2026-11-29", "rodada": 37, "mandante": "Coritiba", "visitante": "Flamengo", "lambda": 0.9629, "mu": 1.8955, "p_casa": 0.1798, "p_empate": 0.2356, "p_fora": 0.5846, "origem": "dixon-coles"}, {"data": "2026-11-29", "rodada": 37, "mandante": "Internacional", "visitante": "Bragantino", "lambda": 1.3301, "mu": 1.0685, "p_casa": 0.4172, "p_empate": 0.2921, "p_fora": 0.2907, "origem": "dixon-coles"}, {"data": "2026-11-29", "rodada": 37, "mandante": "Mirassol", "visitante": "Athletico-PR", "lambda": 1.5481, "mu": 1.1655, "p_casa": 0.4529, "p_empate": 0.269, "p_fora": 0.2781, "origem": "dixon-coles"}, {"data": "2026-11-29", "rodada": 37, "mandante": "Vitória", "visitante": "Santos", "lambda": 1.2446, "mu": 1.2568, "p_casa": 0.353, "p_empate": 0.2882, "p_fora": 0.3588, "origem": "dixon-coles"}, {"data": "2026-12-02", "rodada": 38, "mandante": "Athletico-PR", "visitante": "São Paulo", "lambda": 1.5805, "mu": 0.9759, "p_casa": 0.5059, "p_empate": 0.2691, "p_fora": 0.225, "origem": "dixon-coles"}, {"data": "2026-12-02", "rodada": 38, "mandante": "Bahia", "visitante": "Atlético-MG", "lambda": 1.4617, "mu": 1.0268, "p_casa": 0.4626, "p_empate": 0.2807, "p_fora": 0.2566, "origem": "dixon-coles"}, {"data": "2026-12-02", "rodada": 38, "mandante": "Bragantino", "visitante": "Fluminense", "lambda": 1.334, "mu": 1.1924, "p_casa": 0.3907, "p_empate": 0.2857, "p_fora": 0.3236, "origem": "dixon-coles"}, {"data": "2026-12-02", "rodada": 38, "mandante": "Cruzeiro", "visitante": "Internacional", "lambda": 1.8305, "mu": 0.9173, "p_casa": 0.5811, "p_empate": 0.2415, "p_fora": 0.1774, "origem": "dixon-coles"}, {"data": "2026-12-02", "rodada": 38, "mandante": "Flamengo", "visitante": "Chapecoense", "lambda": 3.3694, "mu": 0.6434, "p_casa": 0.8741, "p_empate": 0.09, "p_fora": 0.0358, "origem": "dixon-coles"}, {"data": "2026-12-02", "rodada": 38, "mandante": "Grêmio", "visitante": "Mirassol", "lambda": 1.3457, "mu": 1.1063, "p_casa": 0.4129, "p_empate": 0.289, "p_fora": 0.2981, "origem": "dixon-coles"}, {"data": "2026-12-02", "rodada": 38, "mandante": "Palmeiras", "visitante": "Coritiba", "lambda": 2.3135, "mu": 0.6246, "p_casa": 0.7492, "p_empate": 0.1729, "p_fora": 0.0779, "origem": "dixon-coles"}, {"data": "2026-12-02", "rodada": 38, "mandante": "Remo", "visitante": "Corinthians", "lambda": 1.2838, "mu": 1.1531, "p_casa": 0.3856, "p_empate": 0.2918, "p_fora": 0.3226, "origem": "dixon-coles"}, {"data": "2026-12-02", "rodada": 38, "mandante": "Santos", "visitante": "Botafogo", "lambda": 1.6899, "mu": 1.1097, "p_casa": 0.5012, "p_empate": 0.2572, "p_fora": 0.2416, "origem": "dixon-coles"}, {"data": "2026-12-02", "rodada": 38, "mandante": "Vasco", "visitante": "Vitória", "lambda": 1.7259, "mu": 0.9932, "p_casa": 0.5377, "p_empate": 0.2538, "p_fora": 0.2085, "origem": "dixon-coles"}], "evolucao": [{"data": "2026-11-08", "Flamengo": {"titulo": 0.88556, "g6": 1.0, "z4": 0.0}, "Palmeiras": {"titulo": 0.11444, "g6": 1.0, "z4": 0.0}, "Cruzeiro": {"titulo": 0.0, "g6": 0.99999, "z4": 0.0}, "Fluminense": {"titulo": 0.0, "g6": 0.99372, "z4": 0.0}, "Athletico-PR": {"titulo": 0.0, "g6": 0.86153, "z4": 0.0}, "Bahia": {"titulo": 0.0, "g6": 0.75227, "z4": 0.0}, "Atlético-MG": {"titulo": 0.0, "g6": 0.27588, "z4": 0.0}, "Santos": {"titulo": 0.0, "g6": 0.06124, "z4": 0.0}, "Bragantino": {"titulo": 0.0, "g6": 0.05207, "z4": 0.0}, "São Paulo": {"titulo": 0.0, "g6": 0.00252, "z4": 9e-05}, "Vasco": {"titulo": 0.0, "g6": 0.00071, "z4": 0.01517}, "Botafogo": {"titulo": 0.0, "g6": 7e-05, "z4": 0.01688}, "Mirassol": {"titulo": 0.0, "g6": 0.0, "z4": 0.12431}, "Coritiba": {"titulo": 0.0, "g6": 0.0, "z4": 0.07795}, "Internacional": {"titulo": 0.0, "g6": 0.0, "z4": 0.31718}, "Corinthians": {"titulo": 0.0, "g6": 0.0, "z4": 0.40916}, "Vitória": {"titulo": 0.0, "g6": 0.0, "z4": 0.46173}, "Grêmio": {"titulo": 0.0, "g6": 0.0, "z4": 0.5779}, "Remo": {"titulo": 0.0, "g6": 0.0, "z4": 0.99963}, "Chapecoense": {"titulo": 0.0, "g6": 0.0, "z4": 1.0}}], "calibracao": [{"faixa": "(0.0, 0.2]", "n": 106, "previsto": 0.082, "observado": 0.066}, {"faixa": "(0.2, 0.4]", "n": 40, "previsto": 0.301, "observado": 0.425}, {"faixa": "(0.4, 0.6]", "n": 41, "previsto": 0.508, "observado": 0.439}, {"faixa": "(0.6, 0.8]", "n": 31, "previsto": 0.713, "observado": 0.742}, {"faixa": "(0.8, 1.0]", "n": 54, "previsto": 0.906, "observado": 0.907}]}</script>
+<script>
+const D = JSON.parse(document.getElementById('dados').textContent);
+const pct = (x, casas = 1) => x >= 0.9995 ? '100%' : x < 0.0005 ? '—' :
+  (x * 100).toFixed(x < 0.01 ? 1 : casas).replace('.', ',') + '%';
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const el = (tag, attrs = {}, texto) => { const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+  if (texto !== undefined) e.textContent = texto; return e; };
+const dataBR = s => { const [a, m, d] = s.split('-'); return `${d}/${m}/${a}`; };
+
+document.getElementById('titulo').textContent = `Brasileirão ${D.temporada} — probabilidades`;
+const contagem = {mercado: 0, modelo: 0};
+for (const [k, v] of Object.entries(D.origem)) contagem[k.startsWith('mercado') ? 'mercado' : 'modelo'] += v;
+const origem = [contagem.mercado && `${contagem.mercado} pelo mercado`,
+                contagem.modelo && `${contagem.modelo} pelo modelo`].filter(Boolean).join(', ');
+document.getElementById('sub').textContent =
+  `Atualizado em ${dataBR(D.data)}` + (D.rodada ? ` · após a rodada ${D.rodada}` : '') +
+  ` · ${D.n_sim.toLocaleString('pt-BR')} simulações · ${D.jogos.length} jogos restantes (${origem})`;
+document.getElementById('nsim').textContent = D.n_sim.toLocaleString('pt-BR');
+
+function barras(id, campo, cor, filtro, limite) {
+  const alvo = document.getElementById(id);
+  const lista = D.clubes.filter(c => c[campo] >= filtro).sort((a, b) => b[campo] - a[campo]).slice(0, limite);
+  if (!lista.length) { alvo.append(el('div', {class: 'tag'}, 'Já definido.')); return; }
+  for (const c of lista) {
+    const linha = el('div', {class: 'barra'});
+    linha.append(el('span', {}, c.time));
+    const t = el('div', {class: 'trilho'}); const f = el('div');
+    f.style.width = (c[campo] * 100) + '%'; f.style.background = css(cor); t.append(f);
+    linha.append(t, el('span', {class: 'num'}, pct(c[campo])));
+    alvo.append(linha);
+  }
+}
+barras('c-titulo', 'titulo', '--ouro', 0.0005, 6);
+barras('c-g6', 'g6', '--azul', 0.0005, 10);
+barras('c-z4', 'z4', '--vermelho', 0.0005, 10);
+
+function fundo(p, cor) {
+  if (p < 0.0005) return '';
+  return `color-mix(in srgb, ${css(cor)} ${Math.round(8 + p * 72)}%, transparent)`;
+}
+(function tabela() {
+  const t = document.getElementById('tab');
+  const cab = el('tr');
+  [['#', ''], ['Clube', 'time'], ['Pts', ''], ['J', ''], ['SG', ''], ['Pts proj.', ''],
+   ['Título', ''], ['G4', ''], ['G5', ''], ['G6', ''], ['Z4', '']]
+    .forEach(([n, c]) => cab.append(el('th', {class: c}, n)));
+  t.append(cab);
+  const ordem = [...D.clubes].sort((a, b) => a.pos_atual - b.pos_atual);
+  for (const c of ordem) {
+    const tr = el('tr');
+    tr.append(el('td', {}, c.pos_atual), el('td', {class: 'time'}, c.time), el('td', {}, c.pts),
+      el('td', {}, c.j), el('td', {}, c.sg), el('td', {}, c.pts_medio.toFixed(1).replace('.', ',')));
+    for (const [campo, cor] of [['titulo', '--ouro'], ['g4', '--azul'], ['g5', '--azul'],
+                                ['g6', '--azul'], ['z4', '--vermelho']]) {
+      const td = el('td', {class: 'p'}, pct(c[campo])); td.style.background = fundo(c[campo], cor);
+      tr.append(td);
+    }
+    t.append(tr);
+  }
+})();
+
+(function heat() {
+  const t = document.getElementById('heat'); const n = D.clubes.length;
+  const cab = el('tr'); cab.append(el('th', {class: 'time'}, 'Clube'));
+  for (let i = 1; i <= n; i++) cab.append(el('th', {}, i + 'º'));
+  t.append(cab);
+  const ordem = [...D.clubes].sort((a, b) => a.pos_media - b.pos_media);
+  for (const c of ordem) {
+    const tr = el('tr'); tr.append(el('td', {class: 'time'}, c.time));
+    c.posicoes.forEach((p, i) => {
+      const cor = i < 6 ? '--azul' : i >= n - 4 ? '--vermelho' : '--muted';
+      const td = el('td', {class: 'c'}, p >= 0.005 ? Math.round(p * 100) : '');
+      td.style.background = fundo(p, cor);
+      td.title = `${c.time}: ${pct(p)} de terminar em ${i + 1}º`;
+      tr.append(td);
+    });
+    t.append(tr);
+  }
+})();
+
+(function evolucao() {
+  if (D.evolucao.length < 2) { document.getElementById('evo-sec').style.display = 'none'; return; }
+  const alvo = document.getElementById('evo');
+  const desenha = () => {
+    alvo.innerHTML = '';
+    const W = alvo.clientWidth || 600, H = 240, m = {l: 36, r: 110, t: 10, b: 24};
+    const datas = D.evolucao.map(e => e.data);
+    const clubes = D.clubes.filter(c => D.evolucao.some(e => e[c.time] &&
+      (e[c.time].titulo > 0.02 || e[c.time].z4 > 0.02)));
+    const ns = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('width', '100%');
+    const x = i => m.l + (W - m.l - m.r) * (datas.length === 1 ? 0.5 : i / (datas.length - 1));
+    const y = p => m.t + (H - m.t - m.b) * (1 - p);
+    for (const g of [0, .25, .5, .75, 1]) {
+      const tx = document.createElementNS(ns, 'text'); tx.setAttribute('x', 0); tx.setAttribute('y', y(g) + 4);
+      tx.textContent = (g * 100) + '%'; svg.append(tx);
+      const ln = document.createElementNS(ns, 'line');
+      Object.entries({x1: m.l, x2: W - m.r, y1: y(g), y2: y(g), stroke: css('--line')})
+        .forEach(([k, v]) => ln.setAttribute(k, v)); svg.append(ln);
+    }
+    datas.forEach((d, i) => { const tx = document.createElementNS(ns, 'text');
+      tx.setAttribute('x', x(i)); tx.setAttribute('y', H - 6); tx.setAttribute('text-anchor', 'middle');
+      tx.textContent = dataBR(d).slice(0, 5); svg.append(tx); });
+    for (const c of clubes) {
+      const campo = D.evolucao.some(e => e[c.time] && e[c.time].titulo > 0.02) ? 'titulo' : 'z4';
+      const cor = css(campo === 'titulo' ? '--ouro' : '--vermelho');
+      const pts = D.evolucao.map((e, i) => e[c.time] ? [x(i), y(e[c.time][campo])] : null).filter(Boolean);
+      const pl = document.createElementNS(ns, 'polyline');
+      pl.setAttribute('points', pts.map(p => p.join(',')).join(' '));
+      Object.entries({fill: 'none', stroke: cor, 'stroke-width': 2, opacity: .85})
+        .forEach(([k, v]) => pl.setAttribute(k, v));
+      svg.append(pl);
+      const fim = pts[pts.length - 1]; const tx = document.createElementNS(ns, 'text');
+      tx.setAttribute('x', fim[0] + 6); tx.setAttribute('y', fim[1] + 4);
+      tx.textContent = `${c.time} (${campo === 'titulo' ? 'título' : 'Z4'})`; svg.append(tx);
+    }
+    alvo.append(svg);
+  };
+  desenha(); new ResizeObserver(desenha).observe(alvo);
+})();
+
+(function jogos() {
+  const alvo = document.getElementById('jogos');
+  for (const j of D.jogos) {
+    const linha = el('div', {class: 'jogo'});
+    linha.append(el('div', {class: 'quando'}, `${dataBR(j.data).slice(0, 5)}` + (j.rodada ? ` · R${j.rodada}` : '')));
+    const nomes = el('div'); nomes.append(el('strong', {}, `${j.mandante} x ${j.visitante}`), ' ',
+      el('span', {class: 'tag'}, j.origem.startsWith('mercado') ? 'mercado' : 'modelo'));
+    const barra = el('div', {class: 'empilhada'});
+    [[j.p_casa, '--azul'], [j.p_empate, '--muted'], [j.p_fora, '--vermelho']].forEach(([p, cor]) => {
+      const s = el('div', {}, p >= 0.08 ? Math.round(p * 100) + '%' : ''); s.style.width = (p * 100) + '%';
+      s.style.background = css(cor); barra.append(s); });
+    linha.append(nomes, barra); alvo.append(linha);
+  }
+})();
+
+(function calib() {
+  const t = document.getElementById('calib');
+  if (!D.calibracao.length) { t.closest('details').style.display = 'none'; return; }
+  const cab = el('tr');
+  ['Faixa prevista', 'Eventos', 'Previsto (média)', 'Aconteceu'].forEach(n => cab.append(el('th', {}, n)));
+  t.append(cab);
+  for (const r of D.calibracao) {
+    const tr = el('tr');
+    tr.append(el('td', {}, String(r.faixa).replace(/[(\]]/g, '').replace(', ', ' a ')),
+      el('td', {}, r.n), el('td', {}, pct(r.previsto)), el('td', {}, pct(r.observado)));
+    t.append(tr);
+  }
+})();
+</script>
+</body>
+</html>

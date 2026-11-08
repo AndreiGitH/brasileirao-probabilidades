@@ -109,6 +109,8 @@ h2 { font-size:18px; margin:36px 0 10px; }
 .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:14px; }
 .card { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px 16px; }
 .card h3 { margin:0 0 10px; font-size:15px; }
+.manual h3 { margin:20px 0 6px; font-size:16px; } .manual h3:first-child { margin-top:0; }
+.manual li { margin:4px 0; }
 .card select { font:inherit; font-size:13px; margin-left:6px; padding:2px 6px; border-radius:6px;
   border:1px solid var(--line); background:var(--panel); color:var(--fg); }
 .barra { display:grid; grid-template-columns:110px 1fr 52px; align-items:center; gap:8px;
@@ -142,12 +144,6 @@ details { margin-top:8px; }
 <main>
 <h1 id="titulo">Brasileirão</h1>
 <p class="sub" id="sub"></p>
-<div class="acoes">
-  <a class="botao" id="atualizar" target="_blank" rel="noopener">Atualizar agora</a>
-  <span class="tag">Atualiza sozinho todo dia às 23:50. O botão só funciona para o dono do
-  repositório: abre o GitHub, toque em "Run workflow". Leva ~2 min.</span>
-</div>
-
 <div class="cards">
   <div class="card"><h3>Título</h3><div id="c-titulo"></div></div>
   <div class="card"><h3>Libertadores
@@ -175,15 +171,73 @@ com os campeões das copas, que o modelo não simula.</p>
 "Mercado" = odds sem a margem da casa (Pinnacle ou Betfair quando disponíveis);
 "modelo" = Dixon-Coles, usado quando o jogo ainda não tem odds.</p>
 
-<h2>Como ler e quão confiável é</h2>
-<div class="card">
-<p style="margin-top:0">Cada atualização simula o restante do campeonato <span id="nsim"></span> vezes, sorteando
-o placar de cada jogo e aplicando os critérios de desempate (pontos, vitórias, saldo, gols marcados e
-confronto direto). A chance de um evento é a fração das simulações em que ele aconteceu.</p>
-<p>No teste com as temporadas 2019–2025, as probabilidades se mostraram bem calibradas: quando o
-modelo disse X%, o evento aconteceu perto de X% das vezes.</p>
+<h2>Manual</h2>
+<div class="card manual">
+<h3>Visão geral</h3>
+<p>O painel mostra, todo dia, a chance de cada clube ser campeão, terminar no G4 a G8 ou ser rebaixado.
+O restante do campeonato é simulado <span id="nsim"></span> vezes usando as odds das casas de apostas sem a
+margem e, quando um jogo ainda não tem odds, um modelo estatístico próprio (Dixon-Coles).</p>
+
+<h3>Como ler o painel</h3>
+<ul>
+<li><b>Cartões:</b> título, Libertadores (o seletor escolhe G4 a G8) e rebaixamento.</li>
+<li><b>Todos os clubes:</b> pontos atuais, pontos projetados (média nas simulações) e as chances. Cor mais forte = chance maior.</li>
+<li><b>Chance de cada posição final:</b> cada linha soma 100%.</li>
+<li><b>Evolução:</b> como as chances de título e Z4 mudaram a cada atualização.</li>
+<li><b>Próximos jogos:</b> vitória do mandante · empate · vitória do visitante, com a origem (mercado ou modelo).</li>
+<li>"—" = menos de 0,05%. "100%" = aconteceu em praticamente todas as simulações, não garantia matemática.</li>
+</ul>
+
+<h3>De onde vêm os dados</h3>
+<ul>
+<li>Placares 2003–2025: bases abertas no GitHub (adaoduque, openfootball).</li>
+<li>Placares e calendário de 2026: football-data.org.</li>
+<li>Odds de jogos já disputados (2012+): football-data.co.uk.</li>
+<li>Odds dos próximos jogos: The Odds API (Pinnacle, Betfair e outras). Mostra só 1–2 semanas à frente.</li>
+<li>Se uma fonte falhar e trouxer menos dados que os atuais, o programa mantém os dados antigos.</li>
+</ul>
+
+<h3>O modelo, passo a passo</h3>
+<ol>
+<li><b>Fonte de cada jogo:</b> Pinnacle → Betfair Exchange → média das casas → modelo Dixon-Coles.</li>
+<li><b>Odds sem margem:</b> a probabilidade bruta é 1 ÷ odd, mas as três somam mais de 100% (o lucro da casa).
+O método da potência usa p = (1/odd)<sup>k</sup>, com k escolhido para a soma dar 100%. Retira mais margem dos
+azarões e foi o melhor de três métodos testados em 5.600 jogos.</li>
+<li><b>Dixon-Coles:</b> cada clube tem força de ataque e de defesa, mais a vantagem de jogar em casa. Gols
+esperados: λ = e<sup>c + h + ataque mandante + defesa visitante</sup> e μ = e<sup>c + ataque visitante + defesa mandante</sup>.
+Os gols seguem Poisson, com correção para 0x0, 1x0, 0x1 e 1x1. Um jogo de 230 dias atrás pesa metade de um de hoje.</li>
+<li><b>1X2 vira placar:</b> o programa acha os gols esperados que reproduzem as probabilidades do mercado, porque o desempate usa saldo e gols.</li>
+<li><b>Monte Carlo:</b> sorteia o placar de cada jogo restante, soma à campanha atual e monta a tabela final, repetindo 100 mil vezes.</li>
+<li><b>Desempate:</b> pontos → vitórias → saldo → gols marcados → confronto direto (entre dois clubes) → sorteio (no lugar dos cartões).</li>
+<li><b>Resultado:</b> a chance é a fração de simulações em que o evento aconteceu. Erro do sorteio: no máximo ±0,3 ponto percentual.</li>
+</ol>
+<p>Ficaram de fora de propósito: "fator motivação" manual, notas por jogador e xG. O mercado já embute boa parte disso.</p>
+
+<h3>Quão confiável é</h3>
+<p>Testado em 2019–2025, temporadas que o modelo não viu. Por jogo nas rodadas 35–38 (erro RPS, menor = melhor):
+mercado 0,2013; mistura 50/50 0,2041; Elo 0,2095; Dixon-Coles 0,2116. As chances finais se mostraram bem
+calibradas: quando o modelo disse X%, o evento aconteceu perto de X% das vezes.</p>
 <details><summary>Ver a calibração do teste</summary><div class="tabela-wrap" style="margin-top:8px">
 <table id="calib"></table></div></details>
+<p><b>Limitações:</b> não simula as copas (vagas na Libertadores podem mudar); sem cartões, o último desempate é
+sorteio; jogos sem odds usam o modelo, menos preciso; 10% de chance acontece 1 vez em 10.</p>
+
+<h3>Glossário</h3>
+<ul>
+<li><b>1X2:</b> vitória do mandante, empate, vitória do visitante.</li>
+<li><b>Odd / margem:</b> quanto a casa paga; as probabilidades brutas somam mais de 100% por causa do lucro da casa.</li>
+<li><b>λ, μ:</b> gols esperados do mandante e do visitante.</li>
+<li><b>Monte Carlo:</b> repetir um sorteio muitas vezes e contar a frequência dos resultados.</li>
+<li><b>Backtest:</b> testar o método em temporadas passadas sem deixar o modelo ver o futuro.</li>
+<li><b>Calibração:</b> se o modelo diz 70%, o evento deve acontecer cerca de 70% das vezes.</li>
+<li><b>G4…G8 / Z4:</b> terminar entre os N primeiros / nas 4 últimas posições (rebaixamento).</li>
+</ul>
+</div>
+
+<div class="acoes" style="margin-top:28px">
+  <a class="botao" id="atualizar" target="_blank" rel="noopener">Atualizar agora</a>
+  <span class="tag">Atualiza sozinho todo dia às 23:50. O botão só funciona para o dono do
+  repositório: abre o GitHub, toque em "Run workflow". Leva ~2 min.</span>
 </div>
 </main>
 <div class="dica" id="dica"></div>

@@ -109,6 +109,8 @@ h2 { font-size:18px; margin:36px 0 10px; }
 .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:14px; }
 .card { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px 16px; }
 .card h3 { margin:0 0 10px; font-size:15px; }
+.card select { font:inherit; font-size:13px; margin-left:6px; padding:2px 6px; border-radius:6px;
+  border:1px solid var(--line); background:var(--panel); color:var(--fg); }
 .barra { display:grid; grid-template-columns:110px 1fr 52px; align-items:center; gap:8px;
   margin:5px 0; font-size:14px; }
 .trilho { height:12px; background:var(--line); border-radius:6px; overflow:hidden; }
@@ -148,7 +150,11 @@ details { margin-top:8px; }
 
 <div class="cards">
   <div class="card"><h3>Título</h3><div id="c-titulo"></div></div>
-  <div class="card"><h3>Libertadores (G6)</h3><div id="c-g6"></div></div>
+  <div class="card"><h3>Libertadores
+    <select id="sel-g" aria-label="Faixa da Libertadores">
+      <option value="4">G4</option><option value="5">G5</option><option value="6" selected>G6</option>
+      <option value="7">G7</option><option value="8">G8</option>
+    </select></h3><div id="c-g6"></div></div>
   <div class="card"><h3>Rebaixamento (Z4)</h3><div id="c-z4"></div></div>
 </div>
 
@@ -203,8 +209,11 @@ document.getElementById('sub').textContent =
 document.getElementById('atualizar').href = D.link_atualizar;
 document.getElementById('nsim').textContent = D.n_sim.toLocaleString('pt-BR');
 
+const ateG = (c, g) => c.posicoes.slice(0, g).reduce((a, b) => a + b, 0);
+for (const c of D.clubes) for (let g = 4; g <= 8; g++) c['G' + g] = ateG(c, g);
 function barras(id, campo, cor, filtro, limite) {
   const alvo = document.getElementById(id);
+  alvo.innerHTML = '';
   const lista = D.clubes.filter(c => c[campo] >= filtro).sort((a, b) => b[campo] - a[campo]).slice(0, limite);
   if (!lista.length) { alvo.append(el('div', {class: 'tag'}, 'Já definido.')); return; }
   for (const c of lista) {
@@ -217,7 +226,9 @@ function barras(id, campo, cor, filtro, limite) {
   }
 }
 barras('c-titulo', 'titulo', '--ouro', 0.0005, 6);
-barras('c-g6', 'g6', '--azul', 0.0005, 10);
+const selG = document.getElementById('sel-g');
+const desenhaG = () => barras('c-g6', 'G' + selG.value, '--azul', 0.0005, 12);
+selG.addEventListener('change', desenhaG); desenhaG();
 barras('c-z4', 'z4', '--vermelho', 0.0005, 10);
 
 function fundo(p, cor) {

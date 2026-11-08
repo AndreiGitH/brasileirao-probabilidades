@@ -41,18 +41,40 @@ Base única em `data/processed/jogos.csv` (versionada). Formato em
 - O ambiente de nuvem do Claude só acessa GitHub e PyPI: odds e temporada
   corrente precisam ser baixadas no PC do usuário e commitadas em `jogos.csv`.
 
+## Resultados até agora (fora da amostra, sem vazamento)
+- Hiperparâmetros (`data/processed/hiperparametros.json`): ξ=0.003/dia (meia-vida
+  ~230 dias), ridge=5. Escolhidos em 2015-2021, rodadas 10-38, por RPS
+  (`scripts/escolher_xi.py`).
+- Teste em 2022-2025 (`scripts/comparar_mercado.py`), RPS (menor = melhor):
+
+  | modelo | todas as rodadas (1520) | rodadas 35-38 (160) |
+  |---|---|---|
+  | frequência histórica | 0.2219 | 0.2322 |
+  | Dixon-Coles | 0.2096 | 0.2169 |
+  | mercado (média, sem margem) | **0.2021** | **0.2023** |
+  | mistura 50/50 | 0.2046 | 0.2078 |
+
+  Vantagem do mercado sobre o DC em RPS: 0.0075 (IC 95% bootstrap 0.0046-0.0103);
+  nas rodadas 35-38, 0.0146 (0.0046-0.025). Confirma a decisão 1.
+- Pinnacle some do football-data.co.uk a partir de fim de out/2025; em 2026 só há
+  odds médias. O arquivo só traz odds de jogos já disputados: odds dos jogos
+  FUTUROS precisam de outra fonte (Fase 3).
+
 ## Comandos
 ```
 uv sync                    # instala dependências
 uv run brasileirao atualizar --temporada 2026
 uv run brasileirao tabela --temporada 2026
+uv run brasileirao proximos --temporada 2026   # forças DC + probabilidades dos jogos restantes
+uv run python scripts/escolher_xi.py           # ~1,5 min
+uv run python scripts/comparar_mercado.py
 uv run pytest -q
 uv run ruff check src tests
 ```
 
 ## Roteiro
 - [x] Fase 1: estrutura, coletores, base unificada, classificação com desempate
-- [ ] Fase 2: Dixon-Coles (ajuste, decaimento, matriz de placares)
+- [x] Fase 2: Dixon-Coles (ajuste, decaimento, matriz de placares)
 - [ ] Fase 3: odds -> probabilidades (remoção de margem) e ajuste dos λ ao mercado
 - [ ] Fase 4: Monte Carlo das rodadas restantes
 - [ ] Fase 5: backtest 2019-2025 e escolha da combinação

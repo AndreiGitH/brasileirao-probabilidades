@@ -78,9 +78,36 @@ def montar(temporada_atual: int | None = None) -> pd.DataFrame:
     return jogos.sort_values(["temporada", "data", "mandante"]).reset_index(drop=True)
 
 
-def salvar(jogos: pd.DataFrame) -> None:
+def _contagens(df: pd.DataFrame) -> pd.DataFrame:
+    return df.groupby("temporada").agg(encerrados=("gols_mandante", "count"),
+                                       odds_med=("odd_med_casa", "count"),
+                                       odds_pin=("odd_pin_casa", "count"))
+
+
+def regressoes(nova: pd.DataFrame, atual: pd.DataFrame) -> list[str]:
+    """Temporadas em que a base nova tem MENOS jogos encerrados ou odds que a atual."""
+    a, n = _contagens(atual), _contagens(nova).reindex(_contagens(atual).index, fill_value=0)
+    pior = (n < a).any(axis=1)
+    def fmt(linha):
+        return ", ".join(f"{k}={int(v)}" for k, v in linha.items())
+    return [f"{t}: nova ({fmt(n.loc[t])}) < atual ({fmt(a.loc[t])})" for t in a.index[pior]]
+
+
+def salvar(jogos: pd.DataFrame, forcar: bool = False) -> bool:
+    """Grava a base. Recusa se ela perder informação em relação à atual.
+
+    Protege contra rodar `atualizar` numa máquina sem token/rede, que trocaria
+    dados completos por fontes atrasadas. Devolve True se gravou.
+    """
+    if ARQUIVO.exists() and not forcar:
+        problemas = regressoes(jogos, carregar())
+        if problemas:
+            log.warning("Base NÃO gravada: a nova perderia dados (use --forcar se for "
+                        "intencional):\n  %s", "\n  ".join(problemas))
+            return False
     ARQUIVO.parent.mkdir(parents=True, exist_ok=True)
     jogos.to_csv(ARQUIVO, index=False, date_format="%Y-%m-%d")
+    return True
 
 
 def carregar() -> pd.DataFrame:

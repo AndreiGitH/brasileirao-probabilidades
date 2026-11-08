@@ -49,3 +49,12 @@ def test_validar_aponta_confronto_repetido():
     for c in COLUNAS_ODDS:
         df[c] = float("nan")
     assert any("repetido" in p for p in validar(df))
+
+
+def test_regressoes_detecta_perda_de_dados():
+    from brasileirao.dados import regressoes
+    atual = pd.DataFrame({"temporada": [2026] * 3, "gols_mandante": [1, 2, 0],
+                          "odd_med_casa": [2.0, 2.1, 1.9], "odd_pin_casa": [None] * 3})
+    nova = atual.assign(gols_mandante=[1, None, None], odd_med_casa=[None] * 3)
+    assert regressoes(nova, atual)
+    assert not regressoes(atual, atual)

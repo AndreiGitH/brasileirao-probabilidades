@@ -69,6 +69,18 @@ Base única em `data/processed/jogos.csv` (versionada). Formato em
   Diferenças pequenas; potência é o padrão.
 - Conversão 1X2 do mercado -> (λ, μ): `mercado.taxas_do_mercado`, usando o ρ do DC.
 
+## Simulação (Fase 4)
+- `modelo/simulacao.py`: sorteia placares da matriz DC (λ, μ do mercado ou do DC),
+  ordena por pts > vitórias > saldo > gols pró > confronto direto (só empate de 2)
+  > sorteio (cartões indisponíveis). 100 mil simulações em ~0,5 s.
+- Saída: título, G4, G5 (4 vagas diretas + 1 preliminar na Libertadores 2026; pode
+  mudar com campeões de copas, que não simulamos), rebaixamento (Z4), pontos e
+  posição médios. Gravada em `data/processed/simulacoes/<data>.csv`.
+- Proteção: `dados.salvar` recusa gravar base que perca jogos encerrados ou odds
+  (ex.: rodar `atualizar` sem token). `--forcar` ignora a proteção.
+- Rotina semanal no PC, sem Claude: `uv run brasileirao rodada` (atualiza, coleta
+  odds, simula). Esforço do Claude só se der erro.
+
 ## Comandos
 ```
 uv sync                    # instala dependências
@@ -76,6 +88,8 @@ uv run brasileirao atualizar --temporada 2026
 uv run brasileirao tabela --temporada 2026
 uv run brasileirao odds                        # odds atuais (gasta 1 crédito da The Odds API)
 uv run brasileirao proximos --temporada 2026   # λ, μ e 1X2 de cada jogo restante, com a origem
+uv run brasileirao simular --n 100000          # Monte Carlo das rodadas restantes
+uv run brasileirao rodada                      # tudo junto: atualizar + odds + simular
 uv run python scripts/comparar_margem.py
 uv run python scripts/escolher_xi.py           # ~1,5 min
 uv run python scripts/comparar_mercado.py
@@ -87,7 +101,7 @@ uv run ruff check src tests
 - [x] Fase 1: estrutura, coletores, base unificada, classificação com desempate
 - [x] Fase 2: Dixon-Coles (ajuste, decaimento, matriz de placares)
 - [x] Fase 3: odds -> probabilidades (remoção de margem) e ajuste dos λ ao mercado
-- [ ] Fase 4: Monte Carlo das rodadas restantes
+- [x] Fase 4: Monte Carlo das rodadas restantes
 - [ ] Fase 5: backtest 2019-2025 e escolha da combinação
 - [ ] Fase 6: painel com as probabilidades por clube
 

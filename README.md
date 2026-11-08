@@ -11,6 +11,7 @@ Requer [uv](https://docs.astral.sh/uv/).
 uv sync
 uv run brasileirao atualizar --temporada 2026   # baixa e une as fontes
 uv run brasileirao tabela --temporada 2026      # classificação atual
+uv run brasileirao rodada                       # atualiza, coleta odds e simula (uso semanal)
 uv run pytest -q
 ```
 

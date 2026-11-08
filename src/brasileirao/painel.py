@@ -8,6 +8,7 @@ JSON e o próprio navegador desenha tabelas e gráficos.
 from __future__ import annotations
 
 import json
+import os
 import re
 from pathlib import Path
 
@@ -18,6 +19,8 @@ from .tabela import classificacao
 
 SIM = DADOS / "processed" / "simulacoes"
 SAIDA = RAIZ / "painel" / "index.html"
+REPO = os.environ.get("GITHUB_REPOSITORY", "AndreiGitH/brasileirao-probabilidades")
+LINK_ATUALIZAR = f"https://github.com/{REPO}/actions/workflows/atualizar.yml"
 
 
 def _datas() -> list[str]:
@@ -67,6 +70,7 @@ def montar_dados(temporada: int) -> dict:
         "jogos": jogos_rest.round(4).to_dict("records"),
         "evolucao": evolucao,
         "calibracao": calib,
+        "link_atualizar": LINK_ATUALIZAR,
     }
 
 
@@ -97,7 +101,11 @@ body { margin:0; background:var(--bg); color:var(--fg);
 main { max-width:1080px; margin:0 auto; padding:24px 16px 48px; }
 h1 { font-size:26px; margin:0 0 4px; letter-spacing:-.01em; }
 h2 { font-size:18px; margin:36px 0 10px; }
-.sub { color:var(--muted); margin:0 0 20px; }
+.sub { color:var(--muted); margin:0 0 12px; }
+.acoes { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin:0 0 20px; }
+.botao { display:inline-block; padding:8px 14px; border-radius:8px; background:var(--azul);
+  color:#fff; text-decoration:none; font-weight:600; font-size:14px; }
+.botao:hover { filter:brightness(1.08); }
 .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:14px; }
 .card { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px 16px; }
 .card h3 { margin:0 0 10px; font-size:15px; }
@@ -132,6 +140,11 @@ details { margin-top:8px; }
 <main>
 <h1 id="titulo">Brasileirão</h1>
 <p class="sub" id="sub"></p>
+<div class="acoes">
+  <a class="botao" id="atualizar" target="_blank" rel="noopener">Atualizar agora</a>
+  <span class="tag">Atualiza sozinho todo dia às 23:50. O botão só funciona para o dono do
+  repositório: abre o GitHub, toque em "Run workflow". Leva ~2 min.</span>
+</div>
 
 <div class="cards">
   <div class="card"><h3>Título</h3><div id="c-titulo"></div></div>
@@ -187,6 +200,7 @@ const origem = [contagem.mercado && `${contagem.mercado} pelo mercado`,
 document.getElementById('sub').textContent =
   `Atualizado em ${dataBR(D.data)}` + (D.rodada ? ` · após a rodada ${D.rodada}` : '') +
   ` · ${D.n_sim.toLocaleString('pt-BR')} simulações · ${D.jogos.length} jogos restantes (${origem})`;
+document.getElementById('atualizar').href = D.link_atualizar;
 document.getElementById('nsim').textContent = D.n_sim.toLocaleString('pt-BR');
 
 function barras(id, campo, cor, filtro, limite) {

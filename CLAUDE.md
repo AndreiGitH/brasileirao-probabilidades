@@ -102,6 +102,15 @@ Base única em `data/processed/jogos.csv` (versionada). Formato em
   posições, evolução entre datas (a partir de 2 simulações), próximos jogos
   com a origem (mercado/modelo) e a calibração do backtest.
 
+## Automação (GitHub Actions + Pages)
+- `.github/workflows/atualizar.yml`: todo dia às 23:50 de Brasília (cron 02:50 UTC)
+  e sob demanda ("Run workflow", só quem tem escrita no repo). Roda `rodada` com
+  TZ=America/Sao_Paulo, faz commit de `data/processed` e `painel`, e publica
+  `painel/` no GitHub Pages: https://andreigith.github.io/brasileirao-probabilidades/
+- Segredos do repositório: FOOTBALL_DATA_TOKEN e ODDS_API_KEY (nunca na página).
+- O botão "Atualizar agora" do painel só abre a página do workflow no GitHub.
+- Como o robô faz commits diários, sempre `git pull` antes de mexer no PC.
+
 ## Comandos
 ```
 uv sync                    # instala dependências

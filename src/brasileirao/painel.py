@@ -332,43 +332,58 @@ function fundo(p, cor) {
 (function evolucao() {
   if (D.evolucao.length < 2) { document.getElementById('evo-sec').style.display = 'none'; return; }
   const alvo = document.getElementById('evo');
+  const ns = 'http://www.w3.org/2000/svg';
+  const no = (tag, attrs, texto) => { const e = document.createElementNS(ns, tag);
+    for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+    if (texto !== undefined) e.textContent = texto; return e; };
+  function grafico(titulo, campo, cor) {
+    const datas = D.evolucao.map(e => e.data);
+    const clubes = D.clubes.filter(c => D.evolucao.some(e => e[c.time] && e[c.time][campo] > 0.02));
+    const caixa = el('div', {style: 'margin-bottom:18px'});
+    caixa.append(el('h3', {}, titulo));
+    if (!clubes.length) { caixa.append(el('div', {class: 'tag'}, 'Já definido.')); return caixa; }
+    const W = alvo.clientWidth || 600, rotuloW = Math.min(150, W * 0.38);
+    const H = Math.max(180, clubes.length * 15 + 40), m = {l: 34, r: rotuloW, t: 8, b: 22};
+    const svg = no('svg', {viewBox: `0 0 ${W} ${H}`, width: '100%'});
+    const x = i => m.l + (W - m.l - m.r) * i / (datas.length - 1);
+    const y = p => m.t + (H - m.t - m.b) * (1 - p);
+    for (const g of [0, .5, 1]) {
+      svg.append(no('text', {x: 0, y: y(g) + 4}, (g * 100) + '%'));
+      svg.append(no('line', {x1: m.l, x2: W - m.r, y1: y(g), y2: y(g), stroke: css('--line')}));
+    }
+    const passo = Math.max(1, Math.ceil(datas.length / Math.max(2, Math.floor((W - m.l - m.r) / 48))));
+    datas.forEach((d, i) => { if (i % passo === 0 || i === datas.length - 1)
+      svg.append(no('text', {x: x(i), y: H - 5, 'text-anchor': 'middle'}, dataBR(d).slice(0, 5))); });
+    const rotulos = [];
+    for (const c of clubes) {
+      const pts = D.evolucao.map((e, i) => e[c.time] ? [x(i), y(e[c.time][campo])] : null).filter(Boolean);
+      svg.append(no('polyline', {points: pts.map(q => q.join(',')).join(' '), fill: 'none',
+        stroke: css(cor), 'stroke-width': 2, opacity: .85}));
+      const fim = pts[pts.length - 1];
+      const ult = D.evolucao[D.evolucao.length - 1][c.time];
+      rotulos.push({y0: fim[1], y: fim[1], x: fim[0], txt: `${c.time} ${pct(ult ? ult[campo] : 0)}`});
+    }
+    // afasta rótulos que se sobrepõem (mínimo 14 px), mantendo a ordem
+    rotulos.sort((a, b) => a.y0 - b.y0);
+    const gap = 14;
+    for (let i = 1; i < rotulos.length; i++) rotulos[i].y = Math.max(rotulos[i].y, rotulos[i - 1].y + gap);
+    const excesso = rotulos.length ? rotulos[rotulos.length - 1].y - (H - m.b) : 0;
+    if (excesso > 0) for (const r of rotulos) r.y -= excesso;
+    for (let i = rotulos.length - 2; i >= 0; i--) rotulos[i].y = Math.min(rotulos[i].y, rotulos[i + 1].y - gap);
+    for (const r of rotulos) {
+      svg.append(no('line', {x1: r.x, y1: r.y0, x2: r.x + 8, y2: r.y, stroke: css('--line')}));
+      svg.append(no('text', {x: r.x + 10, y: r.y + 4}, r.txt));
+    }
+    caixa.append(svg);
+    return caixa;
+  }
   const desenha = () => {
     alvo.innerHTML = '';
-    const W = alvo.clientWidth || 600, H = 240, m = {l: 36, r: 110, t: 10, b: 24};
-    const datas = D.evolucao.map(e => e.data);
-    const clubes = D.clubes.filter(c => D.evolucao.some(e => e[c.time] &&
-      (e[c.time].titulo > 0.02 || e[c.time].z4 > 0.02)));
-    const ns = 'http://www.w3.org/2000/svg';
-    const svg = document.createElementNS(ns, 'svg');
-    svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('width', '100%');
-    const x = i => m.l + (W - m.l - m.r) * (datas.length === 1 ? 0.5 : i / (datas.length - 1));
-    const y = p => m.t + (H - m.t - m.b) * (1 - p);
-    for (const g of [0, .25, .5, .75, 1]) {
-      const tx = document.createElementNS(ns, 'text'); tx.setAttribute('x', 0); tx.setAttribute('y', y(g) + 4);
-      tx.textContent = (g * 100) + '%'; svg.append(tx);
-      const ln = document.createElementNS(ns, 'line');
-      Object.entries({x1: m.l, x2: W - m.r, y1: y(g), y2: y(g), stroke: css('--line')})
-        .forEach(([k, v]) => ln.setAttribute(k, v)); svg.append(ln);
-    }
-    datas.forEach((d, i) => { const tx = document.createElementNS(ns, 'text');
-      tx.setAttribute('x', x(i)); tx.setAttribute('y', H - 6); tx.setAttribute('text-anchor', 'middle');
-      tx.textContent = dataBR(d).slice(0, 5); svg.append(tx); });
-    for (const c of clubes) {
-      const campo = D.evolucao.some(e => e[c.time] && e[c.time].titulo > 0.02) ? 'titulo' : 'z4';
-      const cor = css(campo === 'titulo' ? '--ouro' : '--vermelho');
-      const pts = D.evolucao.map((e, i) => e[c.time] ? [x(i), y(e[c.time][campo])] : null).filter(Boolean);
-      const pl = document.createElementNS(ns, 'polyline');
-      pl.setAttribute('points', pts.map(p => p.join(',')).join(' '));
-      Object.entries({fill: 'none', stroke: cor, 'stroke-width': 2, opacity: .85})
-        .forEach(([k, v]) => pl.setAttribute(k, v));
-      svg.append(pl);
-      const fim = pts[pts.length - 1]; const tx = document.createElementNS(ns, 'text');
-      tx.setAttribute('x', fim[0] + 6); tx.setAttribute('y', fim[1] + 4);
-      tx.textContent = `${c.time} (${campo === 'titulo' ? 'título' : 'Z4'})`; svg.append(tx);
-    }
-    alvo.append(svg);
+    alvo.append(grafico('Título', 'titulo', '--ouro'), grafico('Rebaixamento (Z4)', 'z4', '--vermelho'));
   };
-  desenha(); new ResizeObserver(desenha).observe(alvo);
+  desenha();
+  let largura = alvo.clientWidth;
+  window.addEventListener('resize', () => { if (alvo.clientWidth !== largura) { largura = alvo.clientWidth; desenha(); } });
 })();
 
 (function jogos() {

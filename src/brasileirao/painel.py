@@ -37,7 +37,7 @@ def montar_dados(temporada: int) -> dict:
     jogos_rest = pd.read_csv(SIM / f"{ultima}_jogos.csv")
 
     base = dados.carregar()
-    temp = base[(base["temporada"] == temporada) & (base["data"] < ultima)]
+    temp = base[(base["temporada"] == temporada) & (base["data"] <= ultima)]
     tab = classificacao(temp).set_index("time")
     rodada = int(temp["rodada"].max()) if temp["rodada"].notna().any() else None
 

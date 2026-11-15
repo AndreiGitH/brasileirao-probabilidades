@@ -102,3 +102,10 @@ def test_consenso_sem_casa_preferida_usa_media():
     df = theoddsapi.parse(EVENTOS, "x")
     c = entradas.consenso(df[df["casa_apostas"] == "onexbet"])
     assert c.iloc[0]["fonte_odds"] == "media"
+
+
+def test_consenso_ignora_odd_invalida():
+    df = theoddsapi.parse(EVENTOS, "x")
+    df.loc[df["casa_apostas"] == "pinnacle", "odd_casa"] = 1.0  # mercado suspenso
+    c = entradas.consenso(df)
+    assert c.iloc[0]["fonte_odds"] == "media"  # usou a outra casa, sem quebrar

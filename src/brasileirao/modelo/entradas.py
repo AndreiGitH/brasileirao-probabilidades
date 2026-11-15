@@ -41,6 +41,13 @@ def consenso(odds: pd.DataFrame, metodo: str = "potencia") -> pd.DataFrame:
         return pd.DataFrame(columns=["mandante", "visitante", *PROBS, "fonte_odds", "n_casas"])
     recente = (odds.sort_values("coletado_em")
                .drop_duplicates(["mandante", "visitante", "casa_apostas"], keep="last"))
+    # Odds inválidas (<= 1, vazias) aparecem quando uma casa suspende o mercado,
+    # em geral com o jogo começando: descarta só aquela linha.
+    validas = recente[["odd_casa", "odd_empate", "odd_fora"]].apply(pd.to_numeric, errors="coerce")
+    recente = recente[(validas > 1.0).all(axis=1)]
+    if recente.empty:
+        return pd.DataFrame(
+            columns=["mandante", "visitante", *PROBS, "fonte_odds", "n_casas"])
     p = mercado.remover_margem(recente[["odd_casa", "odd_empate", "odd_fora"]], metodo)
     recente = recente.assign(p_casa=p[:, 0], p_empate=p[:, 1], p_fora=p[:, 2])
     linhas = []

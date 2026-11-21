@@ -9514,9 +9514,9 @@ temporada,rodada,data,mandante,visitante,gols_mandante,gols_visitante,fonte,odd_
 2026,35,2026-11-19,São Paulo,Fluminense,0,1,football-data.org,,,,2.44,3.14,2.87
 2026,35,2026-11-19,Vasco,Internacional,2,1,football-data.org,,,,1.48,4.36,5.86
 2026,35,2026-11-19,Vitória,Bragantino,2,1,football-data.org,,,,2.59,3.36,2.56
-2026,36,2026-11-21,Bahia,Coritiba,,,football-data.org,,,,,,
+2026,36,2026-11-21,Bahia,Coritiba,0,1,football-data.org,,,,,,
 2026,36,2026-11-21,Chapecoense,Cruzeiro,,,football-data.org,,,,,,
-2026,36,2026-11-21,Palmeiras,Flamengo,,,football-data.org,,,,,,
+2026,36,2026-11-21,Palmeiras,Flamengo,1,1,football-data.org,,,,,,
 2026,36,2026-11-22,Athletico-PR,Remo,,,football-data.org,,,,,,
 2026,36,2026-11-22,Bragantino,Vasco,,,football-data.org,,,,,,
 2026,36,2026-11-22,Fluminense,Mirassol,,,football-data.org,,,,,,

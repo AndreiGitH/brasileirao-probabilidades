@@ -21,6 +21,7 @@ from .fontes import footballdata_org, footballdata_uk, historico_github, openfoo
 
 log = logging.getLogger(__name__)
 ARQUIVO = DADOS / "processed" / "jogos.csv"
+MANUAL = DADOS / "manual" / "resultados.csv"
 CHAVE = ["temporada", "mandante", "visitante"]
 
 
@@ -75,6 +76,7 @@ def montar(temporada_atual: int | None = None) -> pd.DataFrame:
         raise RuntimeError("Nenhuma fonte de dados respondeu.")
     jogos = pd.concat(partes, ignore_index=True)
     jogos = _juntar_odds(jogos, _tentar("football-data.co.uk", footballdata_uk.coletar))
+    jogos = aplicar_manuais(jogos)
     return jogos.sort_values(["temporada", "data", "mandante"]).reset_index(drop=True)
 
 
@@ -125,3 +127,34 @@ def relatorio(jogos: pd.DataFrame) -> str:
     problemas = validar(jogos)
     linhas.append("Problemas: " + ("; ".join(problemas) if problemas else "nenhum"))
     return "\n".join(linhas)
+
+
+def aplicar_manuais(jogos: pd.DataFrame, arquivo=MANUAL) -> pd.DataFrame:
+    """Preenche placares informados à mão (data/manual/resultados.csv).
+
+    Só vale enquanto a fonte ainda não tem o placar. Quando a fonte trouxer o
+    resultado, ela prevalece; se divergir do manual, avisa.
+    """
+    if not arquivo.exists():
+        return jogos
+    from .times import padronizar
+    man = pd.read_csv(arquivo)
+    out = jogos.copy()
+    for r in man.itertuples(index=False):
+        m, v = padronizar(r.mandante), padronizar(r.visitante)
+        sel = (out["temporada"] == r.temporada) & (out["mandante"] == m) & (out["visitante"] == v)
+        if not sel.any():
+            log.warning("Resultado manual sem jogo correspondente: %s x %s", m, v)
+            continue
+        i = out.index[sel][0]
+        if pd.isna(out.at[i, "gols_mandante"]):
+            out.loc[i, ["gols_mandante", "gols_visitante"]] = [int(r.gols_mandante),
+                                                               int(r.gols_visitante)]
+            log.info("Resultado manual aplicado: %s %d x %d %s", m, r.gols_mandante,
+                     r.gols_visitante, v)
+        elif (out.at[i, "gols_mandante"], out.at[i, "gols_visitante"]) != (
+                r.gols_mandante, r.gols_visitante):
+            log.warning("Fonte e manual divergem em %s x %s: fonte %s x %s, manual %s x %s",
+                        m, v, out.at[i, "gols_mandante"], out.at[i, "gols_visitante"],
+                        r.gols_mandante, r.gols_visitante)
+    return out

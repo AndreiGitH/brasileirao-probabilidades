@@ -58,3 +58,17 @@ def test_regressoes_detecta_perda_de_dados():
     nova = atual.assign(gols_mandante=[1, None, None], odd_med_casa=[None] * 3)
     assert regressoes(nova, atual)
     assert not regressoes(atual, atual)
+
+
+def test_resultado_manual_so_preenche_vazio(tmp_path):
+    from brasileirao.dados import aplicar_manuais
+    arq = tmp_path / "m.csv"
+    arq.write_text("temporada,mandante,visitante,gols_mandante,gols_visitante\n"
+                   "2026,Internacional,Vitória,2,5\n2026,Bahia,Sport,9,9\n")
+    jogos = pd.DataFrame({"temporada": [2026, 2026], "mandante": ["Internacional", "Bahia"],
+                          "visitante": ["Vitória", "Sport"],
+                          "gols_mandante": pd.array([None, 1], dtype="Int64"),
+                          "gols_visitante": pd.array([None, 0], dtype="Int64")})
+    out = aplicar_manuais(jogos, arq)
+    assert (out.loc[0, "gols_mandante"], out.loc[0, "gols_visitante"]) == (2, 5)
+    assert (out.loc[1, "gols_mandante"], out.loc[1, "gols_visitante"]) == (1, 0)  # fonte vence
